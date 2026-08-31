@@ -1,0 +1,9 @@
+.idea
+.venv
+.vscode
+.ropeproject
+__pycache__
+
+*.log
+*.env
+*.py[cod]
