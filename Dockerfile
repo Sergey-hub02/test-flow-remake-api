@@ -8,13 +8,7 @@ ENV UV_NO_DEV=1
 WORKDIR /app
 RUN uv sync --locked
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 EXPOSE $APP_PORT
-
-RUN addgroup -S tfremake \
-    && adduser -S tfremake -G tfremake
-
-RUN chown -R tfremake:tfremake /app
-
-USER tfremake
-
 CMD ["uv", "run", "runserver.py"]
