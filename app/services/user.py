@@ -1,9 +1,10 @@
+from sqlalchemy import ScalarResult
 from sqlalchemy.exc import NoResultFound
 from pwdlib import PasswordHash
 
 from app.dao.role import RoleDAO
 from app.dao.user import UserDAO
-from app.models.user import UserPost
+from app.models.user import UserPost, UserFilter
 from app.db.tables import Role, User
 
 
@@ -27,3 +28,6 @@ class UserService:
         user_dict["role_id"] = role.id
 
         return await self.__user_dao.save(UserPost(**user_dict))
+
+    async def get(self, user_filter: UserFilter) -> tuple[int, ScalarResult[User]]:
+        return await self.__user_dao.find(user_filter)

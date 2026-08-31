@@ -57,9 +57,7 @@ class User(Base):
     photo: Mapped[Optional[str]] = mapped_column(Text)
     last_name: Mapped[str] = mapped_column(String(255))
     first_name: Mapped[str] = mapped_column(String(255))
-    second_name: Mapped[Optional[str]] = mapped_column(
-        String(255), default=None
-    )
+    second_name: Mapped[Optional[str]] = mapped_column(String(255), default=None)
     birthday: Mapped[date] = mapped_column(Date)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     password: Mapped[str] = mapped_column(Text)

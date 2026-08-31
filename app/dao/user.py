@@ -1,11 +1,18 @@
-from sqlalchemy import insert
+from sqlalchemy import insert, ScalarResult, select, func, asc, desc
+from sqlalchemy.orm import joinedload
 
 from app.dao.base import BaseDAO
-from app.models.user import UserPost
+from app.models.user import UserPost, UserFilter
 from app.db.tables import User
 
 
 class UserDAO(BaseDAO):
+    __additional_columns = ("full_name",)
+
+    @staticmethod
+    def __check_column_exists(col: str) -> bool:
+        return col in User.__table__.columns or col in UserDAO.__additional_columns
+
     async def save(self, user_fields: UserPost) -> User:
         user = (
             await self._db.execute(
@@ -17,3 +24,39 @@ class UserDAO(BaseDAO):
         await self._db.refresh(user, attribute_names=["role"])
 
         return user
+
+    async def find(self, user_filter: UserFilter) -> tuple[int, ScalarResult[User]]:
+        stmt = select(User).options(joinedload(User.role, innerjoin=True))
+        count_stmt = select(func.count(User.id))
+
+        if user_filter.full_name:
+            condition = func.concat_ws(
+                " ", User.last_name, User.first_name, User.second_name
+            ).ilike(f"%{user_filter.full_name}%")
+
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        if user_filter.birthday:
+            condition = User.birthday == user_filter.birthday
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+        if user_filter.email:
+            condition = User.email.ilike(f"%{user_filter.email}%")
+            stmt = stmt.where(condition)
+            count_stmt = count_stmt.where(condition)
+
+        if not self.__check_column_exists(user_filter.order_by):
+            raise NameError("Некорректное поле для сортировки!")
+
+        sort_func = asc if user_filter.order_dir == "asc" else desc
+
+        stmt = (
+            stmt.order_by(sort_func(user_filter.order_by))
+            .limit(user_filter.limit)
+            .offset(user_filter.offset)
+        )
+
+        users = await self._db.scalars(stmt)
+        users_count: int = (await self._db.execute(count_stmt)).scalar_one()
+
+        return users_count, users

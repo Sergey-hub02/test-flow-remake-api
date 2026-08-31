@@ -5,6 +5,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from app.models.role import RoleGet
+from app.models.common import Sorting, Pagination
 
 
 class UserBase(BaseModel):
@@ -27,3 +28,9 @@ class UserGet(UserBase):
     role: RoleGet = Field()
     created_at: datetime = Field()
     updated_at: datetime = Field()
+
+
+class UserFilter(Sorting, Pagination):
+    full_name: Optional[str] = Field(default=None)
+    birthday: Optional[date] = Field(default=None)
+    email: Optional[str] = Field(default=None)
