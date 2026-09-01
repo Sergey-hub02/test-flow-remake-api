@@ -1,6 +1,8 @@
 from sqlalchemy import ScalarResult
 from sqlalchemy.exc import NoResultFound
+
 from pwdlib import PasswordHash
+from uuid import UUID
 
 from app.dao.role import RoleDAO
 from app.dao.user import UserDAO
@@ -31,3 +33,11 @@ class UserService:
 
     async def get(self, user_filter: UserFilter) -> tuple[int, ScalarResult[User]]:
         return await self.__user_dao.find(user_filter)
+
+    async def get_one(self, user_id: UUID) -> User:
+        user = await self.__user_dao.find_by_id(user_id)
+
+        if not user:
+            raise NoResultFound("Не удалось найти пользователя!")
+
+        return user

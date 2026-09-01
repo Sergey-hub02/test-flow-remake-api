@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, Path
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+
 from typing import Annotated
+from uuid import UUID
 
 from app.dependencies import get_user_service
 from app.models.user import UserPost, UserGet, UserFilter
@@ -36,6 +38,21 @@ async def get_users(
         return [UserGet.model_validate(user) for user in users]
     except NameError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
+@router.get("/{user_id}", response_model=UserGet)
+async def get_user(
+    user_id: Annotated[UUID, Path()],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> UserGet:
+    try:
+        user = await user_service.get_one(user_id)
+        return UserGet.model_validate(user)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError as e:
         print(e)
         raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import insert, ScalarResult, select, func, asc, desc
 from sqlalchemy.orm import joinedload
 
@@ -11,7 +13,9 @@ class UserDAO(BaseDAO):
 
     @staticmethod
     def __check_column_exists(col: str) -> bool:
-        return col in User.__table__.columns or col in UserDAO.__additional_columns
+        return (
+            col in User.__table__.columns or col in UserDAO.__additional_columns
+        )
 
     async def save(self, user_fields: UserPost) -> User:
         user = (
@@ -25,7 +29,9 @@ class UserDAO(BaseDAO):
 
         return user
 
-    async def find(self, user_filter: UserFilter) -> tuple[int, ScalarResult[User]]:
+    async def find(
+        self, user_filter: UserFilter
+    ) -> tuple[int, ScalarResult[User]]:
         stmt = select(User).options(joinedload(User.role, innerjoin=True))
         count_stmt = select(func.count(User.id))
 
@@ -60,3 +66,10 @@ class UserDAO(BaseDAO):
         users_count: int = (await self._db.execute(count_stmt)).scalar_one()
 
         return users_count, users
+
+    async def find_by_id(self, user_id: UUID) -> User | None:
+        return await self._db.scalar(
+            select(User)
+            .where(User.id == user_id)
+            .options(joinedload(User.role, innerjoin=True))
+        )
