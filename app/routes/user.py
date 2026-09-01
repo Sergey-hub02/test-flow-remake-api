@@ -74,3 +74,18 @@ async def update_user(
     except SQLAlchemyError as e:
         print(e)
         raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
+@router.delete("/{user_id}", response_model=UserGet)
+async def delete_user(
+    user_id: Annotated[UUID, Path()],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> UserGet:
+    try:
+        deleted_user = await user_service.remove(user_id)
+        return UserGet.model_validate(deleted_user)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")

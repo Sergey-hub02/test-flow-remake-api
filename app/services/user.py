@@ -49,3 +49,12 @@ class UserService:
             raise NoResultFound("Не удалось найти пользователя!")
 
         return await self.__user_dao.update(user_id, user_fields)
+
+    async def remove(self, user_id: UUID) -> User:
+        user = await self.__user_dao.find_by_id(user_id)
+
+        if not user:
+            raise NoResultFound("Не удалось найти пользователя!")
+
+        await self.__user_dao.delete(user_id)
+        return user

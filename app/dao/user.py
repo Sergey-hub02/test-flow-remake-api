@@ -1,6 +1,15 @@
 from uuid import UUID
 
-from sqlalchemy import insert, ScalarResult, select, func, asc, desc, update
+from sqlalchemy import (
+    insert,
+    ScalarResult,
+    select,
+    func,
+    asc,
+    desc,
+    update,
+    delete,
+)
 from sqlalchemy.orm import joinedload
 
 from app.dao.base import BaseDAO
@@ -95,3 +104,9 @@ class UserDAO(BaseDAO):
         await self._db.refresh(user, attribute_names=["role"])
 
         return user
+
+    async def delete(self, user_id: UUID) -> None:
+        await self._db.execute(
+            delete(User).where(User.id == user_id).returning(User)
+        )
+        await self._db.commit()
