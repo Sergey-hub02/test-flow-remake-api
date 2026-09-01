@@ -34,3 +34,11 @@ class UserFilter(Sorting, Pagination):
     full_name: Optional[str] = Field(default=None)
     birthday: Optional[date] = Field(default=None)
     email: Optional[str] = Field(default=None)
+
+
+class UserPut(BaseModel):
+    last_name: Optional[str] = Field(default=None)
+    first_name: Optional[str] = Field(default=None)
+    second_name: Optional[str] = Field(default=None)
+    birthday: Optional[date] = Field(default=None)
+    email: Optional[EmailStr] = Field(default=None)

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from app.dao.role import RoleDAO
 from app.dao.user import UserDAO
-from app.models.user import UserPost, UserFilter
+from app.models.user import UserPost, UserFilter, UserPut
 from app.db.tables import Role, User
 
 
@@ -41,3 +41,11 @@ class UserService:
             raise NoResultFound("Не удалось найти пользователя!")
 
         return user
+
+    async def update(self, user_id: UUID, user_fields: UserPut) -> User:
+        user = await self.__user_dao.find_by_id(user_id)
+
+        if not user:
+            raise NoResultFound("Не удалось найти пользователя!")
+
+        return await self.__user_dao.update(user_id, user_fields)

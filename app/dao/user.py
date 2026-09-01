@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import insert, ScalarResult, select, func, asc, desc
+from sqlalchemy import insert, ScalarResult, select, func, asc, desc, update
 from sqlalchemy.orm import joinedload
 
 from app.dao.base import BaseDAO
-from app.models.user import UserPost, UserFilter
+from app.models.user import UserPost, UserFilter, UserPut
 from app.db.tables import User
 
 
@@ -73,3 +73,25 @@ class UserDAO(BaseDAO):
             .where(User.id == user_id)
             .options(joinedload(User.role, innerjoin=True))
         )
+
+    async def update(self, user_id: UUID, user_fields: UserPut) -> User:
+        update_fields = {
+            k: v for k, v in user_fields.model_dump().items() if v is not None
+        }
+
+        if not update_fields:
+            raise ValueError("Невозможно обновить данные пользователя!")
+
+        user = (
+            await self._db.execute(
+                update(User)
+                .values(update_fields)
+                .where(User.id == user_id)
+                .returning(User)
+            )
+        ).scalar_one()
+
+        await self._db.commit()
+        await self._db.refresh(user, attribute_names=["role"])
+
+        return user

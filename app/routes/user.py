@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from app.dependencies import get_user_service
-from app.models.user import UserPost, UserGet, UserFilter
+from app.models.user import UserPost, UserGet, UserFilter, UserPut
 from app.services.user import UserService
 
 router = APIRouter(tags=["users"])
@@ -51,6 +51,24 @@ async def get_user(
     try:
         user = await user_service.get_one(user_id)
         return UserGet.model_validate(user)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
+@router.put("/{user_id}", response_model=UserGet)
+async def update_user(
+    user_id: Annotated[UUID, Path()],
+    user_fields: Annotated[UserPut, Body()],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> UserGet:
+    try:
+        updated_user = await user_service.update(user_id, user_fields)
+        return UserGet.model_validate(updated_user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except NoResultFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError as e:
