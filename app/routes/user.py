@@ -1,4 +1,12 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, Path
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    Path,
+)
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 
 from typing import Annotated

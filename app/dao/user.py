@@ -83,6 +83,13 @@ class UserDAO(BaseDAO):
             .options(joinedload(User.role, innerjoin=True))
         )
 
+    async def find_by_email(self, email: str) -> User | None:
+        return await self._db.scalar(
+            select(User)
+            .where(User.email == email)
+            .options(joinedload(User.role, innerjoin=True))
+        )
+
     async def update(self, user_id: UUID, user_fields: UserPut) -> User:
         update_fields = {
             k: v for k, v in user_fields.model_dump().items() if v is not None

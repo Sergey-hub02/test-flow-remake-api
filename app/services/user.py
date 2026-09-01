@@ -31,7 +31,9 @@ class UserService:
 
         return await self.__user_dao.save(UserPost(**user_dict))
 
-    async def get(self, user_filter: UserFilter) -> tuple[int, ScalarResult[User]]:
+    async def get(
+        self, user_filter: UserFilter
+    ) -> tuple[int, ScalarResult[User]]:
         return await self.__user_dao.find(user_filter)
 
     async def get_one(self, user_id: UUID) -> User:
