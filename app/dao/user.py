@@ -112,6 +112,21 @@ class UserDAO(BaseDAO):
 
         return user
 
+    async def update_password(self, user_id: UUID, password: str) -> User:
+        user = (
+            await self._db.execute(
+                update(User)
+                .values({User.password: password})
+                .where(User.id == user_id)
+                .returning(User)
+            )
+        ).scalar_one()
+
+        await self._db.commit()
+        await self._db.refresh(user, attribute_names=["role"])
+
+        return user
+
     async def delete(self, user_id: UUID) -> None:
         await self._db.execute(
             delete(User).where(User.id == user_id).returning(User)

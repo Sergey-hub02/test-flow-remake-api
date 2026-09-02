@@ -1,10 +1,24 @@
 import jwt
+import secrets
+import string
 
 from datetime import datetime, timedelta
 from uuid import uuid4, UUID
 
 from app.models.auth import Token, TokenPayload, JWTType
 from app.config import settings
+
+
+class ExpiredOnetimeCodeError(Exception):
+    pass
+
+
+class UnmatchingPasswordsError(Exception):
+    pass
+
+
+class OldPasswordError(Exception):
+    pass
 
 
 def generate_jwt(type: JWTType, payload: TokenPayload) -> Token:
@@ -47,3 +61,8 @@ def decode_jwt(type: JWTType, token: str) -> TokenPayload:
         role=payload["role"],
         user_agent=payload["user_agent"],
     )
+
+
+def generate_random_code(length: int) -> str:
+    chars = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(chars) for _ in range(length))

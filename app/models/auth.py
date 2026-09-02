@@ -19,3 +19,8 @@ class Token(BaseModel):
     exp: int = Field()
     iat: int = Field()
     payload: TokenPayload = Field()
+
+
+class NewPasswordFields(BaseModel):
+    password: str = Field(min_length=6)
+    repeated_password: str = Field(min_length=6)

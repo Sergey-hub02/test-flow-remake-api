@@ -7,6 +7,7 @@ from app.models.auth import Token
 class SessionDAO:
     __WL_PREFIX: str = "whitelist"
     __REFRESH_PREFIX: str = "refresh"
+    __ONETIME_CODE_PREFIX: str = "onetimecode"
 
     __redis: Redis
 
@@ -35,3 +36,24 @@ class SessionDAO:
         await self.__redis.delete(
             f"{self.__REFRESH_PREFIX}:{str(user_id)}:{user_agent}"
         )
+
+    async def add_onetime_code(
+        self, user_id: UUID, code: str, duration: int
+    ) -> None:
+        await self.__redis.set(
+            f"{self.__ONETIME_CODE_PREFIX}:{code}",
+            value=str(user_id),
+            ex=duration,
+        )
+
+    async def get_user_onetime_code(self, code: str) -> UUID | None:
+        user_id = await self.__redis.get(f"{self.__ONETIME_CODE_PREFIX}:{code}")
+
+        return (
+            UUID(user_id.decode())
+            if isinstance(user_id, bytes)
+            else UUID(user_id) if isinstance(user_id, str) else user_id
+        )
+
+    async def del_onetime_code(self, code: str) -> None:
+        await self.__redis.delete(f"{self.__ONETIME_CODE_PREFIX}:{code}")

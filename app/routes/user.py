@@ -12,14 +12,15 @@ from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from typing import Annotated
 from uuid import UUID
 
-from app.dependencies import get_user_service
+from app.dependencies import get_user_service, get_current_user
 from app.models.user import UserPost, UserGet, UserFilter, UserPut
+from app.models.auth import TokenPayload
 from app.services.user import UserService
 
 router = APIRouter(tags=["users"])
 
 
-@router.post("/", response_model=UserGet)
+@router.post("/", response_model=UserGet, deprecated=True)
 async def create_user(
     user_fields: Annotated[UserPost, Body()],
     user_service: Annotated[UserService, Depends(get_user_service)],
@@ -71,7 +72,11 @@ async def update_user(
     user_id: Annotated[UUID, Path()],
     user_fields: Annotated[UserPut, Body()],
     user_service: Annotated[UserService, Depends(get_user_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
 ) -> UserGet:
+    if user.id != user_id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещён!")
+
     try:
         updated_user = await user_service.update(user_id, user_fields)
         return UserGet.model_validate(updated_user)
@@ -88,7 +93,11 @@ async def update_user(
 async def delete_user(
     user_id: Annotated[UUID, Path()],
     user_service: Annotated[UserService, Depends(get_user_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
 ) -> UserGet:
+    if user.id != user_id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещён!")
+
     try:
         deleted_user = await user_service.remove(user_id)
         return UserGet.model_validate(deleted_user)
