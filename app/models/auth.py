@@ -24,3 +24,9 @@ class Token(BaseModel):
 class NewPasswordFields(BaseModel):
     password: str = Field(min_length=6)
     repeated_password: str = Field(min_length=6)
+
+
+class NewEmailFields(BaseModel):
+    email: EmailStr = Field()
+    password: str = Field()
+    repeated_password: str = Field()

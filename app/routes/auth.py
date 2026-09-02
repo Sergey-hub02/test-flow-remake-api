@@ -2,19 +2,24 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Path, Body
 from fastapi.security import OAuth2PasswordRequestForm
 
 from typing import Annotated
+from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError, NoResultFound
 from pydantic import EmailStr
 from redis import RedisError
 
-from app.services.auth import AuthService, NewPasswordFields
+from app.services.auth import AuthService, NewPasswordFields, NewEmailFields
 from app.services.user import UserService
+
 from app.models.user import UserPost, UserGet
-from app.dependencies import get_auth_service, get_user_service
+from app.models.auth import TokenPayload
+
+from app.dependencies import get_auth_service, get_user_service, get_current_user
 
 from app.utils import (
     ExpiredOnetimeCodeError,
     UnmatchingPasswordsError,
     OldPasswordError,
+    MatchingEmailError,
 )
 
 router = APIRouter(tags=["auth"])
@@ -151,6 +156,34 @@ async def change_password(
     except UnmatchingPasswordsError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except OldPasswordError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+    except RedisError as e:
+        print(e)
+        raise HTTPException(
+            status_code=500, detail="Ошибка при запросе к Redis!"
+        )
+
+
+@router.patch("/change_email", response_model=UserGet)
+async def change_email(
+    email_fields: Annotated[NewEmailFields, Body()],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
+) -> UserGet:
+    try:
+        updated_user = await auth_service.change_user_email(
+            user_id=user.id, email_fields=email_fields
+        )
+
+        return UserGet.model_validate(updated_user)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except UnmatchingPasswordsError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except MatchingEmailError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except SQLAlchemyError as e:
         print(e)

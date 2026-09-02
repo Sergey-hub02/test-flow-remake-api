@@ -21,6 +21,10 @@ class OldPasswordError(Exception):
     pass
 
 
+class MatchingEmailError(Exception):
+    pass
+
+
 def generate_jwt(type: JWTType, payload: TokenPayload) -> Token:
     secret = settings.ACCESS_PK if type == "access" else settings.REFRESH_PK
     exp_time = datetime.now() + (

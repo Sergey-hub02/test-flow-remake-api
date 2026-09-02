@@ -1,10 +1,18 @@
 from pwdlib import PasswordHash
+from uuid import UUID
 from sqlalchemy.exc import NoResultFound
 
 from app.dao.user import UserDAO
 from app.dao.session import SessionDAO
 
-from app.models.auth import Token, TokenPayload, NewPasswordFields
+from app.models.auth import (
+    Token,
+    TokenPayload,
+    NewPasswordFields,
+    NewEmailFields,
+)
+from app.models.user import UserPut
+
 from app.db.tables import User
 
 from app.utils import (
@@ -14,6 +22,7 @@ from app.utils import (
     UnmatchingPasswordsError,
     OldPasswordError,
     ExpiredOnetimeCodeError,
+    MatchingEmailError,
 )
 
 from app.config import settings
@@ -120,3 +129,23 @@ class AuthService:
         await self.__session_dao.del_onetime_code(onetime_code)
 
         return updated_user
+
+    async def change_user_email(
+        self, user_id: UUID, email_fields: NewEmailFields
+    ) -> User:
+        user = await self.__user_dao.find_by_id(user_id)
+
+        if not user:
+            raise NoResultFound("Не удалось найти пользователя!")
+
+        if email_fields.password != email_fields.repeated_password:
+            raise UnmatchingPasswordsError("Пароли не совпадают!")
+
+        if user.email == email_fields.email:
+            raise MatchingEmailError("Указанный email совпадает с текущим!")
+
+        update_fields = UserPut(email=email_fields.email)
+
+        return await self.__user_dao.update(
+            user_id=user.id, user_fields=update_fields
+        )
