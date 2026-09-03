@@ -6,16 +6,21 @@ from fastapi import (
     Query,
     Response,
     Path,
+    UploadFile,
 )
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from pydantic import AfterValidator
 
 from typing import Annotated
 from uuid import UUID
 
 from app.dependencies import get_user_service, get_current_user
+
 from app.models.user import UserPost, UserGet, UserFilter, UserPut
 from app.models.auth import TokenPayload
+
 from app.services.user import UserService
+from app.utils import check_image
 
 router = APIRouter(tags=["users"])
 
@@ -82,6 +87,29 @@ async def update_user(
         return UserGet.model_validate(updated_user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
+@router.patch("/{user_id}/photo", response_model=UserGet)
+async def upload_photo(
+    user_id: Annotated[UUID, Path()],
+    photo: Annotated[UploadFile, AfterValidator(check_image)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
+) -> UserGet:
+    if user.id != user_id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещён!")
+
+    try:
+        updated_user = await user_service.update_photo(
+            user_id=user_id, photo=photo
+        )
+
+        return UserGet.model_validate(updated_user)
     except NoResultFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError as e:

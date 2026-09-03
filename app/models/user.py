@@ -25,6 +25,7 @@ class UserGet(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field()
+    photo: Optional[str] = Field(default=None)
     role: RoleGet = Field()
     created_at: datetime = Field()
     updated_at: datetime = Field()

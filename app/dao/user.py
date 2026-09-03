@@ -26,6 +26,26 @@ class UserDAO(BaseDAO):
             col in User.__table__.columns or col in UserDAO.__additional_columns
         )
 
+    async def __update_single_field(
+        self, user_id: UUID, field_name: str, field_value: str
+    ) -> User:
+        if not self.__check_column_exists(field_name):
+            raise NameError("Некорректное поле для обновления!")
+
+        user = (
+            await self._db.execute(
+                update(User)
+                .values({getattr(User, field_name): field_value})
+                .where(User.id == user_id)
+                .returning(User)
+            )
+        ).scalar_one()
+
+        await self._db.commit()
+        await self._db.refresh(user, attribute_names=["role"])
+
+        return user
+
     async def save(self, user_fields: UserPost) -> User:
         user = (
             await self._db.execute(
@@ -113,19 +133,18 @@ class UserDAO(BaseDAO):
         return user
 
     async def update_password(self, user_id: UUID, password: str) -> User:
-        user = (
-            await self._db.execute(
-                update(User)
-                .values({User.password: password})
-                .where(User.id == user_id)
-                .returning(User)
-            )
-        ).scalar_one()
+        return await self.__update_single_field(
+            user_id=user_id,
+            field_name="password",
+            field_value=password,
+        )
 
-        await self._db.commit()
-        await self._db.refresh(user, attribute_names=["role"])
-
-        return user
+    async def update_photo(self, user_id: UUID, photo: str) -> User:
+        return await self.__update_single_field(
+            user_id=user_id,
+            field_name="photo",
+            field_value=photo,
+        )
 
     async def delete(self, user_id: UUID) -> None:
         await self._db.execute(

@@ -2,6 +2,7 @@ import jwt
 import secrets
 import string
 
+from fastapi import UploadFile
 from datetime import datetime, timedelta
 from uuid import uuid4, UUID
 
@@ -70,3 +71,18 @@ def decode_jwt(type: JWTType, token: str) -> TokenPayload:
 def generate_random_code(length: int) -> str:
     chars = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(chars) for _ in range(length))
+
+
+def check_image(image: UploadFile) -> UploadFile:
+    size = image.size if image.size is not None else 0
+    content_type = image.content_type if image.content_type is not None else ""
+
+    if not content_type.startswith("image/"):
+        raise ValueError("Файл должен быть изображением!")
+
+    if size > settings.MAX_IMAGE_FILE_SIZE:
+        raise ValueError(
+            f"Размер файла не должен превышать {settings.MAX_IMAGE_FILE_SIZE / 1024**2} МБ!"
+        )
+
+    return image
