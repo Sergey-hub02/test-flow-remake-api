@@ -1,8 +1,18 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Body
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Path,
+    Body,
+    BackgroundTasks,
+)
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi_mail import FastMail, MessageSchema, MessageType, NameEmail
 
 from typing import Annotated
-from uuid import UUID
+from urllib.parse import urlunparse
+
 from sqlalchemy.exc import SQLAlchemyError, NoResultFound
 from pydantic import EmailStr
 from redis import RedisError
@@ -13,7 +23,12 @@ from app.services.user import UserService
 from app.models.user import UserPost, UserGet
 from app.models.auth import TokenPayload
 
-from app.dependencies import get_auth_service, get_user_service, get_current_user
+from app.dependencies import (
+    get_auth_service,
+    get_user_service,
+    get_current_user,
+    get_mail_client,
+)
 
 from app.utils import (
     ExpiredOnetimeCodeError,
@@ -21,6 +36,8 @@ from app.utils import (
     OldPasswordError,
     MatchingEmailError,
 )
+
+from app.config import settings
 
 router = APIRouter(tags=["auth"])
 
@@ -37,6 +54,8 @@ async def login(
             password=form_data.password,
             user_agent=user_agent,
         )
+
+        # TODO: отправка сообщения на почту
 
         return {
             "access_token": access_token,
@@ -98,6 +117,8 @@ async def register(
             user_agent=user_agent,
         )
 
+        # TODO: отправка сообщения на почту
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -119,10 +140,37 @@ async def register(
 async def send_onetime_code(
     email: Annotated[EmailStr, Body(embed=True)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    mail_client: Annotated[FastMail, Depends(get_mail_client)],
+    background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     try:
-        await auth_service.generate_onetime_code(email)
-        # TODO: отправка кода на почту
+        onetime_code = await auth_service.generate_onetime_code(email)
+
+        template_params = {
+            "email": email,
+            "reset_url": urlunparse(
+                (
+                    "http",
+                    f"{settings.FRONT_HOST}:{settings.FRONT_PORT}",
+                    "/auth/change_password",
+                    "",
+                    f"onetime_code={onetime_code}",
+                    "",
+                )
+            ),
+        }
+
+        message = MessageSchema(
+            subject="TestFlow: Сброс пароля",
+            recipients=[NameEmail("", email)],
+            template_body=template_params,
+            subtype=MessageType.html,
+        )
+
+        background_tasks.add_task(
+            mail_client.send_message, message, template_name="onetime_code.html"
+        )
+
         return {
             "message": "На указанную почту будет выслана ссылка для сброса пароля. Время действия ссылки - 2 минуты!"
         }
@@ -149,6 +197,8 @@ async def change_password(
             onetime_code=onetime_code,
             password_fields=password_fields,
         )
+
+        # TODO: отправка сообщения на почту
 
         return UserGet.model_validate(updated_user)
     except ExpiredOnetimeCodeError as e:
@@ -177,6 +227,8 @@ async def change_email(
         updated_user = await auth_service.change_user_email(
             user_id=user.id, email_fields=email_fields
         )
+
+        # TODO: отправка сообщения на почту
 
         return UserGet.model_validate(updated_user)
     except NoResultFound as e:

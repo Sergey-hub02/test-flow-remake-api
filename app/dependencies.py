@@ -1,5 +1,6 @@
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from fastapi_mail import FastMail
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
@@ -15,7 +16,7 @@ from app.models.auth import TokenPayload
 from app.services.user import UserService
 from app.services.auth import AuthService
 
-from app.config import settings
+from app.config import settings, mail_settings
 from app.utils import decode_jwt
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -56,3 +57,7 @@ async def get_current_user(
     access_token: Annotated[str, Depends(oauth2_scheme)],
 ) -> TokenPayload:
     return decode_jwt(type="access", token=access_token)
+
+
+async def get_mail_client() -> FastMail:
+    return FastMail(mail_settings)

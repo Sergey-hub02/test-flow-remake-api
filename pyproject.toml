@@ -7,6 +7,7 @@ dependencies = [
     "alembic>=1.19.1",
     "asyncpg>=0.31.0",
     "dynaconf>=3.3.5",
+    "fastapi-mail>=1.6.8",
     "fastapi[standard]>=0.141.1",
     "pwdlib[argon2]>=0.3.1",
     "pyjwt>=2.13.0",
