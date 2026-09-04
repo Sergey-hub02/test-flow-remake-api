@@ -25,7 +25,10 @@ class UserService:
         self.__s3_dao = s3_dao
 
     async def create(self, user_fields: UserPost) -> User:
-        role: Role | None = await self.__role_dao.find_by_code("student")
+        if not user_fields.role_id:
+            role = await self.__role_dao.find_by_code("student")
+        else:
+            role = await self.__role_dao.find_by_id(user_fields.role_id)
 
         if not role:
             raise NoResultFound("Не удалось определить роль пользователя!")

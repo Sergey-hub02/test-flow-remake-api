@@ -19,6 +19,7 @@ from app.models.auth import TokenPayload
 
 from app.services.user import UserService
 from app.services.auth import AuthService
+from app.services.mail import MailService
 
 from app.config import settings, mail_settings
 from app.utils import decode_jwt
@@ -108,3 +109,9 @@ def get_current_user(
 
 def get_mail_client() -> FastMail:
     return FastMail(mail_settings)
+
+
+def get_mail_service(
+    mail_client: Annotated[FastMail, Depends(get_mail_client)],
+) -> MailService:
+    return MailService(mail_client)

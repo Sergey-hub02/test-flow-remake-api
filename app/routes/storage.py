@@ -10,7 +10,9 @@ router = APIRouter(tags=["storage"])
 
 
 # noinspection PathParameterInspection
-@router.get("/{bucket_name}/{object_name:path}", response_class=RedirectResponse)
+@router.get(
+    "/{bucket_name}/{object_name:path}", response_class=RedirectResponse
+)
 def download_file(
     bucket_name: Annotated[str, Path()],
     object_name: Annotated[str, Path()],

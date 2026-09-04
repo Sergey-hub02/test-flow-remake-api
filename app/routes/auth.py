@@ -8,26 +8,24 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_mail import FastMail, MessageSchema, MessageType, NameEmail
 
 from typing import Annotated
-from urllib.parse import urlunparse
-
 from sqlalchemy.exc import SQLAlchemyError, NoResultFound
 from pydantic import EmailStr
 from redis import RedisError
 
-from app.services.auth import AuthService, NewPasswordFields, NewEmailFields
+from app.services.auth import AuthService
 from app.services.user import UserService
+from app.services.mail import MailService
 
 from app.models.user import UserPost, UserGet
-from app.models.auth import TokenPayload
+from app.models.auth import TokenPayload, NewPasswordFields, NewEmailFields
 
 from app.dependencies import (
     get_auth_service,
     get_user_service,
     get_current_user,
-    get_mail_client,
+    get_mail_service,
 )
 
 from app.utils import (
@@ -36,8 +34,6 @@ from app.utils import (
     OldPasswordError,
     MatchingEmailError,
 )
-
-from app.config import settings
 
 router = APIRouter(tags=["auth"])
 
@@ -108,8 +104,11 @@ async def register(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
     user_agent: Annotated[str, Header()],
 ) -> dict[str, str]:
+    user_model = user_fields.model_copy()
+    user_model.role_id = None
+
     try:
-        user = await user_service.create(user_fields)
+        user = await user_service.create(user_model)
 
         access_token, refresh_token = await auth_service.login(
             email=user.email,
@@ -136,39 +135,52 @@ async def register(
         )
 
 
+@router.post("/register_teacher", response_model=UserGet)
+async def register_teacher(
+    user_fields: Annotated[UserPost, Body()],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
+    mail_service: Annotated[MailService, Depends(get_mail_service)],
+    background_tasks: BackgroundTasks,
+) -> UserGet:
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещён!")
+
+    try:
+        teacher = await user_service.create(user_fields)
+        onetime_code = await auth_service.generate_onetime_code(teacher.email)
+
+        background_tasks.add_task(
+            mail_service.send_onetime_code,
+            subject="TestFlow: Завершение регистрации преподавателя",
+            email=teacher.email,
+            onetime_code=onetime_code,
+        )
+
+        return UserGet.model_validate(teacher)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
 @router.post("/forgot")
 async def send_onetime_code(
     email: Annotated[EmailStr, Body(embed=True)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    mail_client: Annotated[FastMail, Depends(get_mail_client)],
+    mail_service: Annotated[MailService, Depends(get_mail_service)],
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     try:
         onetime_code = await auth_service.generate_onetime_code(email)
 
-        template_params = {
-            "email": email,
-            "reset_url": urlunparse(
-                (
-                    "http",
-                    f"{settings.FRONT_HOST}:{settings.FRONT_PORT}",
-                    "/auth/change_password",
-                    "",
-                    f"onetime_code={onetime_code}",
-                    "",
-                )
-            ),
-        }
-
-        message = MessageSchema(
-            subject="TestFlow: Сброс пароля",
-            recipients=[NameEmail("", email)],
-            template_body=template_params,
-            subtype=MessageType.html,
-        )
-
         background_tasks.add_task(
-            mail_client.send_message, message, template_name="onetime_code.html"
+            mail_service.send_onetime_code,
+            subject="TestFlow: Сброс пароля",
+            email=email,
+            onetime_code=onetime_code,
         )
 
         return {
