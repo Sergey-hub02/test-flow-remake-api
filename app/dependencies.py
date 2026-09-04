@@ -38,7 +38,7 @@ async def get_redis_client():
         yield redis_client
 
 
-async def get_minio_client() -> Minio:
+def get_minio_client() -> Minio:
     return Minio(
         endpoint=f"{settings.MINIO_HOST}:{settings.MINIO_S3_PORT}",
         access_key=settings.MINIO_ROOT_USER,
@@ -47,28 +47,46 @@ async def get_minio_client() -> Minio:
     )
 
 
-async def get_user_service(
+def get_role_dao(
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    minio_client: Annotated[Minio, Depends(get_minio_client)],
-) -> UserService:
-    role_dao = RoleDAO(db)
-    user_dao = UserDAO(db)
-    s3_dao = S3DAO(minio_client)
+) -> RoleDAO:
+    return RoleDAO(db)
 
+
+def get_user_dao(
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserDAO:
+    return UserDAO(db)
+
+
+def get_session_dao(
+    redis: Annotated[Redis, Depends(get_redis_client)],
+) -> SessionDAO:
+    return SessionDAO(redis)
+
+
+def get_s3_dao(
+    minio_client: Annotated[Minio, Depends(get_minio_client)],
+) -> S3DAO:
+    return S3DAO(minio_client)
+
+
+def get_user_service(
+    role_dao: Annotated[RoleDAO, Depends(get_role_dao)],
+    user_dao: Annotated[UserDAO, Depends(get_user_dao)],
+    s3_dao: Annotated[S3DAO, Depends(get_s3_dao)],
+) -> UserService:
     return UserService(role_dao=role_dao, user_dao=user_dao, s3_dao=s3_dao)
 
 
-async def get_auth_service(
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    redis_client: Annotated[Redis, Depends(get_redis_client)],
+def get_auth_service(
+    user_dao: Annotated[UserDAO, Depends(get_user_dao)],
+    session_dao: Annotated[SessionDAO, Depends(get_session_dao)],
 ) -> AuthService:
-    user_dao = UserDAO(db)
-    session_dao = SessionDAO(redis_client)
-
     return AuthService(user_dao=user_dao, session_dao=session_dao)
 
 
-async def get_current_user(
+def get_current_user(
     access_token: Annotated[str, Depends(oauth2_scheme)],
 ) -> TokenPayload:
     try:
@@ -88,5 +106,5 @@ async def get_current_user(
         )
 
 
-async def get_mail_client() -> FastMail:
+def get_mail_client() -> FastMail:
     return FastMail(mail_settings)

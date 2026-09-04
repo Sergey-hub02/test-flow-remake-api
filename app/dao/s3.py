@@ -4,17 +4,21 @@ from minio import Minio
 
 class S3DAO:
     __minio: Minio
-    __photo_bucket: str = "photo"
 
     def __init__(self, minio: Minio):
         self.__minio = minio
 
-    async def upload_photo(self, photo: UploadFile) -> None:
+    def upload(self, bucket: str, file: UploadFile) -> None:
         self.__minio.put_object(
-            self.__photo_bucket,
-            str(photo.filename),
-            photo.file,
-            length=photo.size if photo.size is not None else 0,
-            content_type=str(photo.content_type),
-            metadata={"filename": str(photo.filename)},
+            bucket_name=bucket,
+            object_name=str(file.filename),
+            data=file.file,
+            length=file.size if file.size is not None else 0,
+            content_type=str(file.content_type),
+        )
+
+    def get(self, bucket: str, object_name: str):
+        return self.__minio.presigned_get_object(
+            bucket_name=bucket,
+            object_name=object_name,
         )

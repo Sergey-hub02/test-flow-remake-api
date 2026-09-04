@@ -66,7 +66,7 @@ class UserService:
         object_name = f"{str(user.id)}/{photo.filename}"
 
         photo.filename = object_name
-        await self.__s3_dao.upload_photo(photo)
+        self.__s3_dao.upload("photo", photo)
 
         return await self.__user_dao.update_photo(
             user_id=user.id, photo=object_name
