@@ -17,7 +17,7 @@ class S3DAO:
             content_type=str(file.content_type),
         )
 
-    def get(self, bucket: str, object_name: str):
+    def get(self, bucket: str, object_name: str) -> str:
         return self.__minio.presigned_get_object(
             bucket_name=bucket,
             object_name=object_name,

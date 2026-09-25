@@ -11,7 +11,6 @@ from app.models.auth import (
     NewPasswordFields,
     NewEmailFields,
 )
-from app.models.user import UserPut
 
 from app.db.tables import User
 
@@ -37,20 +36,16 @@ class AuthService:
         self.__user_dao = user_dao
         self.__session_dao = session_dao
 
-    async def __generate_tokens(
-        self, payload: TokenPayload
-    ) -> tuple[Token, Token]:
+    @staticmethod
+    async def __generate_tokens(payload: TokenPayload) -> tuple[Token, Token]:
         access_token = generate_jwt(type="access", payload=payload)
         refresh_token = generate_jwt(type="refresh", payload=payload)
-
-        await self.__session_dao.whitelist(access_token)
-        await self.__session_dao.add_refresh(refresh_token)
 
         return access_token, refresh_token
 
     async def login(
         self, email: str, password: str, user_agent: str
-    ) -> tuple[str, str]:
+    ) -> tuple[Token, Token]:
         user = await self.__user_dao.find_by_email(email)
 
         if not user or not self.__hasher.verify(password, user.password):
@@ -64,24 +59,45 @@ class AuthService:
         )
         access_token, refresh_token = await self.__generate_tokens(payload)
 
-        return access_token.content, refresh_token.content
+        await self.__session_dao.whitelist(access_token)
+        await self.__session_dao.add_refresh(refresh_token)
 
-    async def refresh(self, refresh_token: str) -> tuple[str, str]:
-        payload = decode_jwt(type="refresh", token=refresh_token)
+        return access_token, refresh_token
+
+    async def refresh(self, refresh_token: str) -> tuple[Token, Token]:
+        token = decode_jwt(type="refresh", token=refresh_token)
+        grace_pair = await self.__session_dao.get_grace_pair(token.jti)
+
+        if grace_pair:
+            new_access_token, new_refresh_token = grace_pair.split(":")
+
+            return decode_jwt(
+                type="access", token=new_access_token
+            ), decode_jwt(type="refresh", token=new_refresh_token)
 
         if not await self.__session_dao.get_refresh(
-            user_id=payload.id, user_agent=payload.user_agent
+            user_id=token.payload.id, user_agent=token.payload.user_agent
         ):
             raise PermissionError("Не удалось определить обладателя токена!")
 
-        await self.__session_dao.del_refresh(
-            user_id=payload.id, user_agent=payload.user_agent
+        new_access_token, new_refresh_token = await self.__generate_tokens(
+            token.payload
         )
 
-        new_access_token, new_refresh_token = await self.__generate_tokens(
-            payload
+        await self.__session_dao.del_refresh(
+            user_id=token.payload.id, user_agent=token.payload.user_agent
         )
-        return new_access_token.content, new_refresh_token.content
+
+        await self.__session_dao.whitelist(new_access_token)
+        await self.__session_dao.add_refresh(new_refresh_token)
+
+        await self.__session_dao.add_grace_pair(
+            jti=token.jti,
+            access_token=new_access_token.content,
+            refresh_token=new_refresh_token.content,
+        )
+
+        return new_access_token, new_refresh_token
 
     async def generate_onetime_code(self, email: str) -> str:
         user = await self.__user_dao.find_by_email(email)
@@ -144,8 +160,6 @@ class AuthService:
         if user.email == email_fields.email:
             raise MatchingEmailError("Указанный email совпадает с текущим!")
 
-        update_fields = UserPut(email=email_fields.email)
-
-        return await self.__user_dao.update(
-            user_id=user.id, user_fields=update_fields
+        return await self.__user_dao.update_email(
+            user_id=user_id, email=email_fields.email
         )

@@ -42,4 +42,3 @@ class UserPut(BaseModel):
     first_name: Optional[str] = Field(default=None)
     second_name: Optional[str] = Field(default=None)
     birthday: Optional[date] = Field(default=None)
-    email: Optional[EmailStr] = Field(default=None)

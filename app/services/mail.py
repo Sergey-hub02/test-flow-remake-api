@@ -20,9 +20,9 @@ class MailService:
                 (
                     "http",
                     f"{settings.FRONT_HOST}:{settings.FRONT_PORT}",
-                    "/auth/change_password",
+                    f"/change_password/{onetime_code}",
                     "",
-                    f"onetime_code={onetime_code}",
+                    "",
                     "",
                 )
             ),

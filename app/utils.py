@@ -56,15 +56,22 @@ def generate_jwt(type: JWTType, payload: TokenPayload) -> Token:
     )
 
 
-def decode_jwt(type: JWTType, token: str) -> TokenPayload:
+def decode_jwt(type: JWTType, token: str) -> Token:
     secret = settings.ACCESS_PK if type == "access" else settings.REFRESH_PK
     payload = jwt.decode(token, key=secret, algorithms=[settings.ENC_ALGO])
 
-    return TokenPayload(
-        id=UUID(payload["id"]),
-        email=payload["email"],
-        role=payload["role"],
-        user_agent=payload["user_agent"],
+    return Token(
+        type=type,
+        content=token,
+        jti=UUID(payload["jti"]),
+        exp=payload["exp"],
+        iat=payload["iat"],
+        payload=TokenPayload(
+            id=UUID(payload["id"]),
+            email=payload["email"],
+            role=payload["role"],
+            user_agent=payload["user_agent"],
+        ),
     )
 
 

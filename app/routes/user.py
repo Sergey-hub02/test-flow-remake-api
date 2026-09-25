@@ -25,7 +25,7 @@ from app.utils import check_image
 router = APIRouter(tags=["users"])
 
 
-@router.post("/", response_model=UserGet, deprecated=True)
+@router.post("", response_model=UserGet)
 async def create_user(
     user_fields: Annotated[UserPost, Body()],
     user_service: Annotated[UserService, Depends(get_user_service)],
@@ -40,7 +40,7 @@ async def create_user(
         raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
 
 
-@router.get("/", response_model=list[UserGet])
+@router.get("", response_model=list[UserGet])
 async def get_users(
     user_filter: Annotated[UserFilter, Query()],
     user_service: Annotated[UserService, Depends(get_user_service)],
@@ -52,6 +52,21 @@ async def get_users(
         return [UserGet.model_validate(user) for user in users]
     except NameError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except SQLAlchemyError as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
+
+
+@router.get("/me", response_model=UserGet)
+async def get_me_user(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    user: Annotated[TokenPayload, Depends(get_current_user)],
+) -> UserGet:
+    try:
+        user = await user_service.get_one(user.id)
+        return UserGet.model_validate(user)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError as e:
         print(e)
         raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")

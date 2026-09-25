@@ -146,6 +146,13 @@ class UserDAO(BaseDAO):
             field_value=photo,
         )
 
+    async def update_email(self, user_id: UUID, email: str) -> User:
+        return await self.__update_single_field(
+            user_id=user_id,
+            field_name="email",
+            field_value=email,
+        )
+
     async def delete(self, user_id: UUID) -> None:
         await self._db.execute(
             delete(User).where(User.id == user_id).returning(User)

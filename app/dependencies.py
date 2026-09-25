@@ -91,7 +91,8 @@ def get_current_user(
     access_token: Annotated[str, Depends(oauth2_scheme)],
 ) -> TokenPayload:
     try:
-        return decode_jwt(type="access", token=access_token)
+        # TODO: добавить проверку токена в whitelist'е
+        return decode_jwt(type="access", token=access_token).payload
     except ExpiredSignatureError as e:
         print(e)
         raise HTTPException(

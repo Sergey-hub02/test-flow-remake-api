@@ -51,11 +51,9 @@ async def login(
             user_agent=user_agent,
         )
 
-        # TODO: отправка сообщения на почту
-
         return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
+            "access_token": access_token.content,
+            "refresh_token": refresh_token.content,
             "token_type": "bearer",
         }
     except PermissionError as e:
@@ -81,50 +79,12 @@ async def refresh(
         )
 
         return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
+            "access_token": new_access_token.content,
+            "refresh_token": new_refresh_token.content,
             "token_type": "bearer",
         }
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except SQLAlchemyError as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
-    except RedisError as e:
-        print(e)
-        raise HTTPException(
-            status_code=500, detail="Ошибка при запросе к Redis!"
-        )
-
-
-@router.post("/register", response_model=dict[str, str])
-async def register(
-    user_fields: Annotated[UserPost, Body()],
-    user_service: Annotated[UserService, Depends(get_user_service)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    user_agent: Annotated[str, Header()],
-) -> dict[str, str]:
-    user_model = user_fields.model_copy()
-    user_model.role_id = None
-
-    try:
-        user = await user_service.create(user_model)
-
-        access_token, refresh_token = await auth_service.login(
-            email=user.email,
-            password=user_fields.password,
-            user_agent=user_agent,
-        )
-
-        # TODO: отправка сообщения на почту
-
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        }
-    except NoResultFound as e:
-        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError as e:
         print(e)
         raise HTTPException(status_code=500, detail="Ошибка при запросе к БД!")
@@ -184,7 +144,7 @@ async def send_onetime_code(
         )
 
         return {
-            "message": "На указанную почту будет выслана ссылка для сброса пароля. Время действия ссылки - 2 минуты!"
+            "message": "На указанную почту будет выслана ссылка для сброса пароля!"
         }
     except NoResultFound as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -257,3 +217,6 @@ async def change_email(
         raise HTTPException(
             status_code=500, detail="Ошибка при запросе к Redis!"
         )
+
+
+# TODO: эндпоинт для logout
